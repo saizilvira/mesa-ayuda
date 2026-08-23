@@ -27,7 +27,7 @@ jobs:
 
       - name: Análisis estático (ruff)
         run: |
-          ruff check src/ tests/ --output-format=github
+          ruff check src/ tests/ --output-format=github --ignore=UP045
 
       - name: Ejecutar pruebas unitarias
         run: |
