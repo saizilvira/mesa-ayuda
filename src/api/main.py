@@ -20,6 +20,11 @@ from src.ai.clasificador import obtener_clasificador
 from src.rag.retriever import RetrieverPoliticas
 from src.api.schemas import ConsultaRAGRequest, ConsultaRAGResponse, CitaResponse
 
+import time
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from src.observability.metrics import metrics
+
 _retriever: Optional[RetrieverPoliticas] = None
 
 def get_retriever() -> RetrieverPoliticas:
@@ -43,6 +48,24 @@ app = FastAPI(
     version=settings.app_version,
     description="API de la Mesa de Ayuda",
 )
+
+class LatencyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        inicio = time.perf_counter()
+        response = await call_next(request)
+        latencia_ms = (time.perf_counter() - inicio) * 1000
+
+        # No registramos el endpoint de métricas a sí mismo para no contaminar
+        if not request.url.path.startswith("/metrics"):
+            metrics.record_request(
+                path=request.url.path,
+                method=request.method,
+                status_code=response.status_code,
+                latency_ms=latencia_ms,
+            )
+        return response
+
+app.add_middleware(LatencyMiddleware)
 
 # Manejador uniforme de errores
 @app.exception_handler(Exception)
@@ -197,3 +220,8 @@ def consultar_politicas(payload: ConsultaRAGRequest):
         ],
         mensaje_abstencion=resultado.mensaje_abstencion,
     )
+
+# Observabilidad
+@app.get("/metrics", summary="Resumen agregado de latencia y tokens")
+def obtener_metricas():
+    return metrics.resumen()
