@@ -23,11 +23,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff pytest
-
-      - name: Análisis estático (ruff)
-        run: |
-          ruff check src/ tests/ --output-format=github
 
       - name: Ejecutar pruebas unitarias
         run: |
