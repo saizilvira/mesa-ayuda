@@ -16,3 +16,4 @@ build/
 .coverage
 htmlcov/
 *.db
+data/chroma_db/
