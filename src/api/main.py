@@ -15,6 +15,8 @@ from src.api.schemas import (
 )
 from src.config import settings
 
+from src.ai.clasificador import obtener_clasificador
+
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -59,6 +61,9 @@ def crear_solicitud(payload: SolicitudCreate):
     now = datetime.now(timezone.utc)
     solicitud_id = f"SOL-{uuid.uuid4().hex[:8].upper()}"
 
+    clasificador = obtener_clasificador()
+    clasificacion = clasificador.clasificar(payload.asunto, payload.descripcion)
+
     registro = {
         "id": solicitud_id,
         "asunto": payload.asunto,
@@ -72,6 +77,29 @@ def crear_solicitud(payload: SolicitudCreate):
         "fecha_creacion": now,
         "fecha_actualizacion": now,
     }
+
+    registro["categoria"] = clasificacion.categoria
+    registro["prioridad"] = clasificacion.prioridad
+
+    if clasificacion.modo_degradado:
+        logger.warning(
+            "clasificacion_degradada",
+            extra={
+                "solicitud_id": solicitud_id,
+                "motivo": clasificacion.motivo_degradado,
+            },
+        )
+    else:
+        logger.info(
+            "clasificacion_ok",
+            extra={
+                "solicitud_id": solicitud_id,
+                "categoria": clasificacion.categoria,
+                "prioridad": clasificacion.prioridad,
+                "confianza": clasificacion.confianza,
+            },
+        )
+
     _db[solicitud_id] = registro
 
     logger.info(
