@@ -7,6 +7,8 @@ import requests
 from src.ai.base import ClasificadorSolicitudes, ClasificacionResultado
 from src.config import settings
 
+from src.observability.metrics import metrics
+
 logger = logging.getLogger("ai.clasificador")
 
 
@@ -91,6 +93,11 @@ class ClasificadorIA(ClasificadorSolicitudes):
             json=payload,
             timeout=self.timeout,
         )
+
+        usage = data.get("usage", {})
+        total_tokens = usage.get("total_tokens", 0)
+        metrics.record_tokens(provider="openai", tokens=total_tokens, modo_degradado=False)
+
         response.raise_for_status()
         data = response.json()
 
@@ -143,6 +150,8 @@ class ClasificadorIA(ClasificadorSolicitudes):
             modo_degradado=True,
             motivo_degradado=motivo,
         )
+
+        metrics.record_tokens(provider="reglas-locales", tokens=0, modo_degradado=True)
 
 
 # Ejecución
