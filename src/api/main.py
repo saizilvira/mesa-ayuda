@@ -17,6 +17,17 @@ from src.config import settings
 
 from src.ai.clasificador import obtener_clasificador
 
+from src.rag.retriever import RetrieverPoliticas
+from src.api.schemas import ConsultaRAGRequest, ConsultaRAGResponse, CitaResponse
+
+_retriever: Optional[RetrieverPoliticas] = None
+
+def get_retriever() -> RetrieverPoliticas:
+    global _retriever
+    if _retriever is None:
+        _retriever = RetrieverPoliticas()
+    return _retriever
+
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -30,7 +41,7 @@ _db: dict[str, dict] = {}
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="API de la Mesa de Ayuda — Etapa 2",
+    description="API de la Mesa de Ayuda",
 )
 
 # Manejador uniforme de errores
@@ -160,3 +171,29 @@ def listar_solicitudes(
 @app.get("/health", summary="Health check")
 def health():
     return {"status": "ok", "version": settings.app_version}
+
+# RAG
+@app.post(
+    "/consultar-politicas",
+    response_model=ConsultaRAGResponse,
+    summary="Consultar políticas internas (RAG)",
+)
+def consultar_politicas(payload: ConsultaRAGRequest):
+    # Responde preguntas sobre las políticas internas.
+    retriever = get_retriever()
+    resultado = retriever.consultar(payload.pregunta)
+
+    return ConsultaRAGResponse(
+        respuesta=resultado.respuesta,
+        tiene_evidencia=resultado.tiene_evidencia,
+        citas=[
+            CitaResponse(
+                documento=c.documento,
+                pagina=c.pagina,
+                fragmento=c.fragmento,
+                score=c.score,
+            )
+            for c in resultado.citas
+        ],
+        mensaje_abstencion=resultado.mensaje_abstencion,
+    )

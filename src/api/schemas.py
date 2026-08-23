@@ -47,3 +47,21 @@ class SolicitudResponse(BaseModel):
 class SolicitudListResponse(BaseModel):
     total: int
     items: list[SolicitudResponse]
+
+# RAG
+class ConsultaRAGRequest(BaseModel):
+    pregunta: str = Field(..., min_length=5, max_length=500)
+
+
+class CitaResponse(BaseModel):
+    documento: str
+    pagina: int
+    fragmento: str
+    score: float
+
+
+class ConsultaRAGResponse(BaseModel):
+    respuesta: str
+    tiene_evidencia: bool
+    citas: list[CitaResponse]
+    mensaje_abstencion: Optional[str] = None
