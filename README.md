@@ -7,7 +7,7 @@ Prueba Técnica
 
 - [x] **Etapa 1 — Fundamentos** (Desarrollador IA Junior I)
 - [x] **Etapa 2 — Autonomía e integración** (Desarrollador IA Junior II)
-- [ ] Etapa 3 — Complejidad y calidad
+- [x] **Etapa 3 — Complejidad y calidad**
 - [ ] Etapa 4 — Arquitectura y orquestación
 - [ ] Etapa 5 — Estrategia técnica
 
@@ -100,6 +100,26 @@ curl "http://127.0.0.1:8000/solicitudes?limit=5"
 curl http://127.0.0.1:8000/solicitudes/SOL-XXXXXXXX
 ```
 
+### Etapa 3
+```bash
+# Ingesta de políticas (RAG)
+python -m src.rag.ingest
+
+# API (incluye endpoint RAG + métricas)
+uvicorn src.api.main:app --reload --port 8000
+
+# Consultar políticas
+curl -X POST http://127.0.0.1:8000/consultar-politicas \
+  -H "Content-Type: application/json" \
+  -d '{"pregunta": "¿Cuántos días de vacaciones tengo?"}'
+
+# Métricas
+curl http://127.0.0.1:8000/metrics
+
+# Prueba de abstención
+pytest tests/test_rag_abstencion.py -v
+```
+
 ---
 
 ## Qué hace cada etapa
@@ -127,6 +147,15 @@ curl http://127.0.0.1:8000/solicitudes/SOL-XXXXXXXX
 - Logging estructurado.
 - Documentación funcional y contrato técnico de la API.
 
+### Etapa 3 — Complejidad y calidad
+- **RAG** sobre los 5 PDFs de políticas (ingesta, fragmentación, embeddings, ChromaDB).
+- Endpoint `/consultar-politicas` que cita documento y página de origen.
+- **Abstención** explícita cuando no hay evidencia + caso de prueba que lo demuestra.
+- **Pipeline de CI** (ruff + pytest + ingesta) con evidencia de ejecución exitosa y fallida.
+- **Informe de seguridad** con ≥ 3 hallazgos sobre código generado por IA y correcciones aplicadas.
+- **Instrumentación**: latencia por petición, tokens consumidos y resumen agregado (`/metrics`).
+- **Artefacto para el equipo**: guía de revisión de código generado por IA.
+
 ---
 
 ## Supuestos realizados
@@ -142,6 +171,11 @@ curl http://127.0.0.1:8000/solicitudes/SOL-XXXXXXXX
 - Si no hay proveedor de IA configurado, se activa automáticamente el modo degradado.
 - El token del mock y las claves de IA se leen exclusivamente de variables de entorno.
 
+### Etapa 3
+- La persistencia de la API es en memoria (suficiente para las etapas implementadas).
+- Clasificación de IA cae a modo degradado (reglas locales) cuando no hay proveedor configurado.
+- Base vectorial generada localmente con `sentence-transformers` + ChromaDB.
+- No se versionan secretos ni la carpeta `data/chroma_db/`.
 ---
 
 ## Qué se dejó fuera
@@ -149,14 +183,20 @@ curl http://127.0.0.1:8000/solicitudes/SOL-XXXXXXXX
 **Etapa 2**  
 - Pantalla Angular
 
+**Etapa 3**  
+- Conexión con LLM externo
+
 ---
 
 ## Documentación
 
 | Documento | Ubicación |
 |-----------|-----------|
-| Funcional (qué resuelve y para quién) | [`docs/documentacion_funcional.md`](docs/documentacion_funcional.md) |
-| Contrato técnico de la API | [`docs/contrato_api.md`](docs/contrato_api.md) |
+| Funcional | [`docs/documentacion_funcional.md`](docs/documentacion_funcional.md) |
+| Contrato de la API | [`docs/contrato_api.md`](docs/contrato_api.md) |
+| Informe de seguridad | [`docs/informe_seguridad.md`](docs/informe_seguridad.md) |
+| Guía de revisión de código IA | [`docs/guia_revision_codigo_ia.md`](docs/guia_revision_codigo_ia.md) |
+| Demostración CI | [`docs/ci_ejecuciones.md`](docs/ci_ejecuciones.md) |
 
 ---
 
@@ -171,6 +211,7 @@ mesa-ayuda-inteligente/
 ├── data/
 │   ├── tickets_historicos.csv
 │   └── esquema.sql
+│   └── politicas/
 ├── src/
 │   ├── __init__.py
 │   ├── config.py
@@ -183,9 +224,12 @@ mesa-ayuda-inteligente/
 │   │   ├── base.py
 │   │   └── clasificador.py
 │   └── api/
+│   │   ├── __init__.py
+│   │   ├── schemas.py
+│   │   └── main.py
+│   └── observability/
 │       ├── __init__.py
-│       ├── schemas.py
-│       └── main.py
+│       ├── metrics.py
 ├── tests/
 │   ├── __init__.py
 │   ├── test_limpiar_tickets.py
